@@ -6,6 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 
 
 public class AiConsole extends JFrame {
@@ -14,6 +16,7 @@ public class AiConsole extends JFrame {
     private JTextField inputField;
     private JButton sendButton;
     private List<String> commandHistory = new ArrayList<>();
+    private JButton voiceButton; // Adding a new button to call from python
 
     public AiConsole() {
         setTitle("AIonix OS Console");
@@ -27,6 +30,7 @@ public class AiConsole extends JFrame {
 
         inputField = new JTextField();
         sendButton = new JButton("Send");
+        voiceButton = new JButton("🎤"); // This uses Python code file
 
         inputField.addKeyListener(new KeyAdapter() {
         int index = -1;
@@ -45,7 +49,25 @@ public class AiConsole extends JFrame {
 
         JPanel inputPanel = new JPanel(new BorderLayout());
         inputPanel.add(inputField, BorderLayout.CENTER);
-        inputPanel.add(sendButton, BorderLayout.EAST);
+        JPanel buttons = new JPanel(new GridLayout(1,2));
+        buttons.add(sendButton);
+        buttons.add(voiceButton);
+
+        inputPanel.add(buttons, BorderLayout.EAST);
+        // Voice Action listener block
+        voiceButton.addActionListener(e -> {
+            appendChat("🎤 Listening...");
+            String voiceText = listenFromMic();
+
+            if (!voiceText.isEmpty()) {
+                appendChat("> " + voiceText);
+                commandHistory.add(voiceText);
+                String response = handleCommand(voiceText);
+                appendChat("AI :: " + response);
+            } else {
+                appendChat("AI :: I didn't catch that.");
+            }
+    });
 
         add(scrollPane, BorderLayout.CENTER);
         add(inputPanel, BorderLayout.SOUTH);
@@ -150,8 +172,34 @@ public class AiConsole extends JFrame {
     } catch (Exception e) {
         e.printStackTrace();
         return false;
+    } 
+}
+    private String listenFromMic() {
+    try {
+        ProcessBuilder pb = new ProcessBuilder("python", "voice_input.py");
+        pb.redirectErrorStream(true);
+        Process process = pb.start();
+
+        BufferedReader reader = new BufferedReader(
+                new InputStreamReader(process.getInputStream())
+        );
+
+        StringBuilder sb = new StringBuilder();
+        String line;
+        while ((line = reader.readLine()) != null) {
+            sb.append(line);
+        }
+
+        process.waitFor();
+
+        return sb.toString().toLowerCase().trim();
+
+    } catch (Exception e) {
+        e.printStackTrace();
+        return "";
     }
 }
+
 
 
     private String listFilesIn(String path) {
