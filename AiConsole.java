@@ -64,6 +64,7 @@ public class AiConsole extends JFrame {
                 commandHistory.add(voiceText);
                 String response = handleCommand(voiceText);
                 appendChat("AI :: " + response);
+                speak(response);
             } else {
                 appendChat("AI :: I didn't catch that.");
             }
@@ -84,6 +85,7 @@ public class AiConsole extends JFrame {
                     commandHistory.add(userText);
                     String response = handleCommand(userText);
                     appendChat("AIonix : " + response);
+                    speak(response);
                     inputField.setText("");
                 }
             }
@@ -200,7 +202,18 @@ public class AiConsole extends JFrame {
     }
 }
 
-
+    private void speak(String text) {
+        try {
+            ProcessBuilder pb = new ProcessBuilder(
+                "python",
+                "voice_output.py",
+                text
+            );
+            pb.start();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
     private String listFilesIn(String path) {
         java.io.File folder = new java.io.File(path);
