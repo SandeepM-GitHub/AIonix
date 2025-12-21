@@ -8,16 +8,23 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 
 
 public class AiConsole extends JFrame {
 
+// Fields or Variables
     private JTextArea chatArea;
     private JTextField inputField;
     private JButton sendButton;
-    private List<String> commandHistory = new ArrayList<>();
     private JButton voiceButton; // Adding a new button to call from python
 
+    private List<String> commandHistory = new ArrayList<>();
+
+// Constructors
     public AiConsole() {
         setTitle("AIonix OS Console");
         setSize(800, 600);
@@ -44,8 +51,7 @@ public class AiConsole extends JFrame {
                     index = Math.max(0, index - 1);
                 }
             }
-        }
-    });
+        }});
 
         JPanel inputPanel = new JPanel(new BorderLayout());
         inputPanel.add(inputField, BorderLayout.CENTER);
@@ -54,6 +60,7 @@ public class AiConsole extends JFrame {
         buttons.add(voiceButton);
 
         inputPanel.add(buttons, BorderLayout.EAST);
+
         // Voice Action listener block
         voiceButton.addActionListener(e -> {
             appendChat("🎤 Listening...");
@@ -68,7 +75,7 @@ public class AiConsole extends JFrame {
             } else {
                 appendChat("AI :: I didn't catch that.");
             }
-    });
+        });
 
         add(scrollPane, BorderLayout.CENTER);
         add(inputPanel, BorderLayout.SOUTH);
@@ -90,131 +97,90 @@ public class AiConsole extends JFrame {
                 }
             }
         };
-
         sendButton.addActionListener(sendAction);
         inputField.addActionListener(sendAction);
     }
 
+// UI helper methods
     private void applyDarkTheme() {
-    Color bg = new Color(30, 30, 30);
-    Color fg = new Color(220, 220, 220);
+        Color bg = new Color(30, 30, 30);
+        Color fg = new Color(220, 220, 220);
 
-    chatArea.setBackground(bg);
-    chatArea.setForeground(fg);
-    chatArea.setCaretColor(fg);
+        chatArea.setBackground(bg);
+        chatArea.setForeground(fg);
+        chatArea.setCaretColor(fg);
 
-    inputField.setBackground(new Color(45, 45, 45));
-    inputField.setForeground(fg);
-    inputField.setCaretColor(fg);
+        inputField.setBackground(new Color(45, 45, 45));
+        inputField.setForeground(fg);
+        inputField.setCaretColor(fg);
 
-    sendButton.setBackground(new Color(60, 60, 60));
-    sendButton.setForeground(fg);
-}
-
+        sendButton.setBackground(new Color(60, 60, 60));
+        sendButton.setForeground(fg);
+    }
     private void appendChat(String text) {
-    chatArea.append(text + "\n");
-    chatArea.setCaretPosition(chatArea.getDocument().getLength());
-}
+        chatArea.append(text + "\n");
+        chatArea.setCaretPosition(chatArea.getDocument().getLength());
+    }
 
-
-    // For now this is the "brain"
+// Command "Brain"
     private String handleCommand(String input) {
-    String cmd = input.toLowerCase();
+        String cmd = input.toLowerCase();
 
-    if (cmd.equals("history")) {
-        if (commandHistory.isEmpty()) {
-            return "No commands yet.";
+        if (cmd.equals("history")) {
+            if (commandHistory.isEmpty()) {
+                return "No commands yet.";
+            }
+            StringBuilder sb = new StringBuilder("Command history:\n");
+            for (int i = 0; i < commandHistory.size(); i++) {
+                sb.append(i + 1).append(". ").append(commandHistory.get(i)).append("\n");
+            }
+            return sb.toString();
         }
-        StringBuilder sb = new StringBuilder("Command history:\n");
-        for (int i = 0; i < commandHistory.size(); i++) {
-            sb.append(i + 1).append(". ").append(commandHistory.get(i)).append("\n");
+        else if (cmd.equals("last command")) {
+            if (commandHistory.size() < 2) {
+                return "No previous command.";
+            }
+            return "Last command was: " +
+                    commandHistory.get(commandHistory.size() - 2);
         }
-        return sb.toString();
-    }
-    else if (cmd.equals("last command")) {
-        if (commandHistory.size() < 2) {
-            return "No previous command.";
+        else if (cmd.equals("time")) {
+            return java.time.LocalTime.now().toString();
         }
-        return "Last command was: " +
-                commandHistory.get(commandHistory.size() - 2);
+        else if (cmd.startsWith("open ")) {
+            String appName = input.substring(5);
+            boolean ok = openApplication(appName);
+            return ok ? "Opening " + appName : "I couldn't open " + appName;
+        }
+        else if (cmd.startsWith("list files in ")) {
+            String path = input.substring("list files in ".length());
+            return listFilesIn(path);
+        }
+        else {
+            return callAiModel(input);
+        }
     }
-    else if (cmd.equals("time")) {
-        return java.time.LocalTime.now().toString();
-    }
-    else if (cmd.startsWith("open ")) {
-        String appName = input.substring(5);
-        boolean ok = openApplication(appName);
-        return ok ? "Opening " + appName : "I couldn't open " + appName;
-    }
-    else if (cmd.startsWith("list files in ")) {
-        String path = input.substring("list files in ".length());
-        return listFilesIn(path);
-    }
-    else {
-        return "I don't understand that yet.";
-    }
-}
 
-
+//System actions (OS-level)
     private boolean openApplication(String appName) {
-    try {
-        ProcessBuilder builder;
-
-        // Windows-specific handling
-        if (System.getProperty("os.name").toLowerCase().contains("win")) {
-            builder = new ProcessBuilder("cmd", "/c", appName);
-        } else {
-            // Linux / macOS
-            builder = new ProcessBuilder(appName);
-        }
-
-        builder.start();
-        return true;
-
-    } catch (Exception e) {
-        e.printStackTrace();
-        return false;
-    } 
-}
-    private String listenFromMic() {
-    try {
-        ProcessBuilder pb = new ProcessBuilder("python", "voice_input.py");
-        pb.redirectErrorStream(true);
-        Process process = pb.start();
-
-        BufferedReader reader = new BufferedReader(
-                new InputStreamReader(process.getInputStream())
-        );
-
-        StringBuilder sb = new StringBuilder();
-        String line;
-        while ((line = reader.readLine()) != null) {
-            sb.append(line);
-        }
-
-        process.waitFor();
-
-        return sb.toString().toLowerCase().trim();
-
-    } catch (Exception e) {
-        e.printStackTrace();
-        return "";
-    }
-}
-
-    private void speak(String text) {
         try {
-            ProcessBuilder pb = new ProcessBuilder(
-                "python",
-                "voice_output.py",
-                text
-            );
-            pb.start();
+            ProcessBuilder builder;
+
+            // Windows-specific handling
+            if (System.getProperty("os.name").toLowerCase().contains("win")) {
+                builder = new ProcessBuilder("cmd", "/c", appName);
+            } else {
+                // Linux / macOS
+                builder = new ProcessBuilder(appName);
+            }
+
+            builder.start();
+            return true;
+
         } catch (Exception e) {
             e.printStackTrace();
-        }
+            return false;
+        } 
     }
-
     private String listFilesIn(String path) {
         java.io.File folder = new java.io.File(path);
         if (!folder.exists() || !folder.isDirectory()) {
@@ -232,6 +198,107 @@ public class AiConsole extends JFrame {
         return sb.toString();
     }
 
+// Voice methods
+    private String listenFromMic() {
+        try {
+            ProcessBuilder pb = new ProcessBuilder("python", "voice_input.py");
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+
+            BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(process.getInputStream())
+            );
+
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line);
+            }
+
+            process.waitFor();
+
+            return sb.toString().toLowerCase().trim();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "";
+        }
+    }
+    private void speak(String text) {
+        try {
+            ProcessBuilder pb = new ProcessBuilder(
+                "python",
+                "voice_output.py",
+                text
+            );
+            pb.start();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+// AI methods
+    private String callAiModel(String userPrompt) {
+        try {
+            String apiKey = System.getenv("GROQ_API_KEY");
+            if (apiKey == null || apiKey.isEmpty()) {
+                return "Groq API key not found. Please set GROQ_API_KEY.";
+            }
+
+            String requestBody = """
+                    {
+                        "model" : "llama-3.1-8b-instant",
+                        "messages": [
+                        {"role": "system", "content": "You are an AI operating system assistant."},
+                        {"role": "user", "content": "%s"}
+                        ]
+                    }
+                    """.formatted(userPrompt);
+
+                    HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create("https://api.groq.com/openai/v1/chat/completions"))
+                        .header("Content-Type", "application/json")
+                        .header("Authorization", "Bearer " +apiKey)
+                        .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                        .build();
+                    
+                    HttpClient client = HttpClient.newHttpClient();
+                    HttpResponse<String> response = 
+                        client.send(request, HttpResponse.BodyHandlers.ofString());
+                        // System.out.println("RAW GROQ RESPONSE:\n" + response.body());
+
+                    return extractAiText(response.body());
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "Error contacting Groq AI service.";
+        }
+
+    }
+    private String extractAiText(String json) {
+        try {
+            // Looking for assistant message content
+            int contentIndex = json.indexOf("\"content\":");
+            if (contentIndex == -1) {
+                return "No AI response";
+            }
+            // Move past "content":
+            int startQuote = json.indexOf("\"", contentIndex + 10);
+            int endQuote = json.indexOf("\"", startQuote + 1);
+
+            if (startQuote == -1 || endQuote == -1) {
+                return "No AI response.";
+            }
+            return json.substring(startQuote + 1, endQuote)
+                    .replace("\\n", "\n")
+                    .replace("\\\"", "\"");
+        } catch (Exception e) {
+            return "Failed to parse AI response.";
+        }
+    }
+
+    
+// Main
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             AiConsole console = new AiConsole();
