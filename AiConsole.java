@@ -36,6 +36,11 @@ public class AiConsole extends JFrame {
         JScrollPane scrollPane = new JScrollPane(chatArea);
 
         inputField = new JTextField();
+        // Improving readability
+        Font consoleFont = new Font("Monospaced", Font.PLAIN, 20);
+        chatArea.setFont(consoleFont);
+        inputField.setFont(consoleFont);
+
         sendButton = new JButton("Send");
         voiceButton = new JButton("🎤"); // This uses Python code file
 
