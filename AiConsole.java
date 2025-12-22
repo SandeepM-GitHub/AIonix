@@ -39,18 +39,36 @@ public class AiConsole extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
+        JLabel header = new JLabel("AIonix - Intelligent OS Console");
+        header.setForeground(new Color(200, 200, 200));
+        header.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+        header.setFont(new Font("Sanserif", Font.BOLD, 14));
+
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setBackground(new Color(30, 30, 34));
+        headerPanel.add(header, BorderLayout.WEST);
+
+        add(headerPanel, BorderLayout.NORTH);
+
         chatArea = new JTextArea();
         chatArea.setEditable(false);
         JScrollPane scrollPane = new JScrollPane(chatArea);
 
         inputField = new JTextField();
         // Improving readability
-        Font consoleFont = new Font("Monospaced", Font.PLAIN, 20);
+        Font consoleFont = new Font("JetBrains Mono", Font.PLAIN, 20);
         chatArea.setFont(consoleFont);
+        chatArea.setMargin(new Insets(10, 10, 10, 10));
         inputField.setFont(consoleFont);
+        inputField.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 
         sendButton = new JButton("Send");
+        sendButton.setFocusPainted(false);
+        sendButton.setBorderPainted(false);
+
         voiceButton = new JButton("🎤"); // This uses Python code file
+        voiceButton.setFocusPainted(false);
+        voiceButton.setBorderPainted(false);
 
         inputField.addKeyListener(new KeyAdapter() {
         int index = -1;
@@ -120,8 +138,8 @@ public class AiConsole extends JFrame {
 
 // UI helper methods
     private void applyDarkTheme() {
-        Color bg = new Color(30, 30, 30);
-        Color fg = new Color(220, 220, 220);
+        Color bg = new Color(24, 24, 27);
+        Color fg = new Color(228, 228, 231);
 
         chatArea.setBackground(bg);
         chatArea.setForeground(fg);
@@ -129,10 +147,13 @@ public class AiConsole extends JFrame {
 
         inputField.setBackground(new Color(45, 45, 45));
         inputField.setForeground(fg);
-        inputField.setCaretColor(fg);
+        inputField.setCaretColor(new Color(0, 200, 150));
 
-        sendButton.setBackground(new Color(60, 60, 60));
+        sendButton.setBackground(new Color(60, 60, 65));
         sendButton.setForeground(fg);
+
+        voiceButton.setBackground(new Color(60, 60, 65));
+        voiceButton.setForeground(fg);
     }
     private void appendChat(String text) {
         chatArea.append(text + "\n");
@@ -170,7 +191,8 @@ public class AiConsole extends JFrame {
         // Default Knowledge Intent
         return IntentType.KNOWLEDGE;
     }
-// Command "Brain"
+
+    // Command "Brain"
     private String handleCommand(String input) {
         // Handling Intents
         IntentType intent = routeIntent(input);
@@ -379,6 +401,7 @@ public class AiConsole extends JFrame {
             } catch (Exception ignored) {}
         }
     }
+    
     
 // Main
     public static void main(String[] args) {
