@@ -21,8 +21,16 @@ public class AiConsole extends JFrame {
     private JTextField inputField;
     private JButton sendButton;
     private JButton voiceButton; // Adding a new button to call from python
+    private List<String> commandHistory = new ArrayList<>(); // Variable for implementing
+    private final List<Process> childProcesses = new ArrayList<>(); // Variable for implementing Process Life cycle Management
 
-    private List<String> commandHistory = new ArrayList<>();
+// Variable for "Intent Router"
+    private enum IntentType {
+        SYSTEM,
+        KNOWLEDGE,
+        HYBRID,
+        CONTROL
+    }
 
 // Constructors
     public AiConsole() {
@@ -104,7 +112,11 @@ public class AiConsole extends JFrame {
         };
         sendButton.addActionListener(sendAction);
         inputField.addActionListener(sendAction);
-    }
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            cleanupChildProcesses();
+        }));
+}
 
 // UI helper methods
     private void applyDarkTheme() {
@@ -127,11 +139,76 @@ public class AiConsole extends JFrame {
         chatArea.setCaretPosition(chatArea.getDocument().getLength());
     }
 
+// Implementation of "INTENT ROUTER"
+    private IntentType routeIntent(String input) {
+        String text = input.toLowerCase();
+
+        // Control Intent
+        if (text.equals("cmdhistory") || text.equals("cmdlast")
+            || text.contains("speak") || text.contains("mute")
+                || text.contains("stop")) {
+            return IntentType.CONTROL;
+        }
+
+        // System Intent
+        if (text.contains("open") || text.contains("list") 
+                || text.contains("folder") || text.contains("path")) {
+            // if asked for explanation then HYBRID
+            if (text.contains("why") || text.contains("what") 
+                    || text.contains("explain") || text.contains("how")) {
+                return IntentType.HYBRID;
+            }
+            return IntentType.SYSTEM;
+        }
+
+        // Knowledge Intent
+        if (text.contains("why") || text.contains("what") 
+                || text.contains("explain") || text.contains("how")) {
+            return IntentType.KNOWLEDGE;
+        }
+
+        // Default Knowledge Intent
+        return IntentType.KNOWLEDGE;
+    }
 // Command "Brain"
     private String handleCommand(String input) {
+        // Handling Intents
+        IntentType intent = routeIntent(input);
+
+        switch (intent) {
+            case SYSTEM:
+                return handleSystemIntent(input);
+
+            case KNOWLEDGE:
+                return callAiModel(input);
+            
+            case HYBRID:
+                handleSystemIntent(input);
+                return callAiModel(input);
+            
+            case CONTROL:
+                return handleSystemIntent(input);
+        
+            default:
+                return callAiModel(input);
+        }
+    }
+
+//System actions (OS-level)
+    private String handleSystemIntent(String input) {
         String cmd = input.toLowerCase();
 
-        if (cmd.equals("history")) {
+        if (cmd.startsWith("open ")) {
+            String app = cmd.substring(5);
+            return openApplication(app)
+                ? "Opening " + app
+                : "Could not open " + app;
+        }
+        else if (cmd.startsWith("list files in ")) {
+            return listFilesIn(cmd.substring(14));
+        }
+        // Handles history of the commands given
+        else if (cmd.equals("cmdhistory")) {
             if (commandHistory.isEmpty()) {
                 return "No commands yet.";
             }
@@ -141,31 +218,19 @@ public class AiConsole extends JFrame {
             }
             return sb.toString();
         }
-        else if (cmd.equals("last command")) {
+        else if (cmd.equals("cmdlast")) {
             if (commandHistory.size() < 2) {
                 return "No previous command.";
             }
             return "Last command was: " +
                     commandHistory.get(commandHistory.size() - 2);
         }
-        else if (cmd.equals("time")) {
-            return java.time.LocalTime.now().toString();
-        }
-        else if (cmd.startsWith("open ")) {
-            String appName = input.substring(5);
-            boolean ok = openApplication(appName);
-            return ok ? "Opening " + appName : "I couldn't open " + appName;
-        }
-        else if (cmd.startsWith("list files in ")) {
-            String path = input.substring("list files in ".length());
-            return listFilesIn(path);
-        }
-        else {
-            return callAiModel(input);
-        }
-    }
+        // else if (cmd.equals("time")) {
+        //     return java.time.LocalTime.now().toString();
+        // }
 
-//System actions (OS-level)
+        return "System command not recognized";
+    }
     private boolean openApplication(String appName) {
         try {
             ProcessBuilder builder;
@@ -231,12 +296,14 @@ public class AiConsole extends JFrame {
     }
     private void speak(String text) {
         try {
-            ProcessBuilder pb = new ProcessBuilder(
+            Process process = new ProcessBuilder(
                 "python",
                 "voice_output.py",
                 text
-            );
-            pb.start();
+            ).start();
+
+            childProcesses.add(process);
+
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -302,6 +369,16 @@ public class AiConsole extends JFrame {
         }
     }
 
+// Clean-Up logic for Process Life cycle Management
+    private void cleanupChildProcesses() {
+        for (Process p : childProcesses) {
+            try {
+                if(p.isAlive()) {
+                    p.destroy();
+                }
+            } catch (Exception ignored) {}
+        }
+    }
     
 // Main
     public static void main(String[] args) {
