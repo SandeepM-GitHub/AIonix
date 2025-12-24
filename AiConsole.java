@@ -3,7 +3,9 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.io.BufferedReader;
@@ -23,6 +25,7 @@ public class AiConsole extends JFrame {
     private JButton voiceButton; // Adding a new button to call from python
     private List<String> commandHistory = new ArrayList<>(); // Variable for implementing
     private final List<Process> childProcesses = new ArrayList<>(); // Variable for implementing Process Life cycle Management
+    private final Map<String, String> appAliasMap = new HashMap<>(); // apps Aliasing
 
 // Variable for "Intent Router"
     private enum IntentType {
@@ -69,6 +72,8 @@ public class AiConsole extends JFrame {
         voiceButton = new JButton("🎤"); // This uses Python code file
         voiceButton.setFocusPainted(false);
         voiceButton.setBorderPainted(false);
+
+        initAppAliases();
 
         inputField.addKeyListener(new KeyAdapter() {
         int index = -1;
@@ -134,9 +139,9 @@ public class AiConsole extends JFrame {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             cleanupChildProcesses();
         }));
-}
+    }
 
-// UI helper methods
+    // UI helper methods
     private void applyDarkTheme() {
         Color bg = new Color(24, 24, 27);
         Color fg = new Color(228, 228, 231);
@@ -160,7 +165,16 @@ public class AiConsole extends JFrame {
         chatArea.setCaretPosition(chatArea.getDocument().getLength());
     }
 
-// Implementation of "INTENT ROUTER"
+    // Implementation of App aliasing
+    private void initAppAliases() {
+        appAliasMap.put("notepad", "notepad");
+        appAliasMap.put("calculator", "calc");
+        appAliasMap.put("calc", "calc");
+        appAliasMap.put("cmd", "wt");
+        appAliasMap.put("terminal", "wt");
+        appAliasMap.put("powershell", "wt");
+    }
+    // Implementation of "INTENT ROUTER"
     private IntentType routeIntent(String input) {
         String text = input.toLowerCase();
 
@@ -221,10 +235,13 @@ public class AiConsole extends JFrame {
         String cmd = input.toLowerCase();
 
         if (cmd.startsWith("open ")) {
-            String app = cmd.substring(5);
-            return openApplication(app)
-                ? "Opening " + app
-                : "Could not open " + app;
+            String appName = cmd.substring(5).trim();
+            String resolvedApp = 
+            appAliasMap.getOrDefault(appName, appName);
+            return openApplication(resolvedApp)
+                ? "Opening " + appName
+                : "Could not open " + appName;
+                
         }
         else if (cmd.startsWith("list files in ")) {
             return listFilesIn(cmd.substring(14));
@@ -250,7 +267,6 @@ public class AiConsole extends JFrame {
         // else if (cmd.equals("time")) {
         //     return java.time.LocalTime.now().toString();
         // }
-
         return "System command not recognized";
     }
     private boolean openApplication(String appName) {
